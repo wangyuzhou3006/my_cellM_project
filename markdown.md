@@ -14,7 +14,7 @@
 程序运行后会输出：
 
 - 终端中的模拟摘要
-- 用户状态、热度、曝光来源和局部传播强度曲线
+- 用户状态、行为转化、热度、曝光来源和传播深度曲线
 - 传播过程动画
 
 ---
@@ -52,9 +52,9 @@
 - 初始化传播网格
 - 生成用户个体属性
 - 计算邻居影响
-- 执行单步状态更新
+- 执行多阶段行为状态更新
 - 计算热度
-- 记录完整历史数据
+- 记录完整历史数据和转化指标
 
 ### `visualize.py`
 可视化模块。
@@ -62,7 +62,7 @@
 职责：
 
 - 绘制状态数量变化曲线
-- 绘制热度、新增传播者、曝光来源和局部传播强度曲线
+- 绘制状态数量、行为漏斗、热度、曝光来源、转化率和传播深度曲线
 - 显示传播过程动画
 
 ### `markdown.md`
@@ -78,16 +78,18 @@
 
 ## 3. 模型中的用户状态
 
-项目将每个网格单元视为一个用户，每个用户处于以下 4 种状态之一：
+项目将每个网格单元视为一个用户，每个用户处于以下 6 种状态之一：
 
 - `UNSEEN = 0`：未看过视频
-- `VIEWED = 1`：已看到视频，但尚未主动传播
-- `SHARING = 2`：正在传播视频
-- `INACTIVE = 3`：对视频失去兴趣，不再传播
+- `EXPOSED = 1`：刷到视频但未停留观看
+- `VIEWED = 2`：停留观看但尚未互动
+- `ENGAGED = 3`：已经互动，但尚未主动传播
+- `SHARING = 4`：正在传播视频
+- `INACTIVE = 5`：对视频失去兴趣，不再传播
 
 状态转移方向为：
 
-`UNSEEN -> VIEWED -> SHARING -> INACTIVE`
+`UNSEEN -> EXPOSED -> VIEWED -> ENGAGED -> SHARING -> INACTIVE`
 
 这是一个单向传播过程，用户进入 `INACTIVE` 后不会再次回到活跃传播状态。
 
@@ -154,23 +156,32 @@
 - 用户活跃度
 - 用户兴趣匹配度
 
-最终只要用户满足任意一条曝光路径，就会从 `UNSEEN` 进入 `VIEWED`。
+最终只要用户满足任意一条曝光路径，就会从 `UNSEEN` 进入 `EXPOSED`。
 
 ---
 
-## 4.4 分享机制
+## 4.4 行为漏斗机制
 
-当用户已经处于 `VIEWED` 状态时，会进一步判断是否转为 `SHARING`。
+当前版本不再直接从 `VIEWED` 进入 `SHARING`，而是按更细的行为链推进：
 
-影响因素包括：
+1. `EXPOSED -> VIEWED`
+刷到内容后，用户可能停留观看。
 
-- 基础分享概率
+2. `VIEWED -> ENGAGED`
+完成观看后，用户可能发生互动行为。
+
+3. `ENGAGED -> SHARING`
+已互动用户进一步转化为传播者。
+
+各阶段的转化都会受到以下因素组合影响：
+
+- 阶段基础概率
 - 周围传播者的影响力
 - 当前热度
 - 用户活跃度
 - 用户兴趣匹配度
 
-这表示“用户是否愿意进一步主动传播”不是固定的，而是受到内容热度、周围环境和个体倾向共同影响。
+这使模型不再只有“看过/传播”两个中间层，而能表达用户从刷到、停留、互动到分享的完整漏斗。
 
 ---
 
@@ -219,7 +230,7 @@
 2. 初始化随机数生成器
 3. 创建初始网格，并随机生成初始传播者
 4. 为所有用户生成个体属性
-5. 记录初始状态和初始热度
+5. 初始化传播深度和统计容器
 6. 重复执行每一步传播更新
 7. 保存每一步的网格和统计结果
 8. 输出摘要信息
@@ -232,25 +243,44 @@
 模拟过程中会记录一组历史数据 `history`，主要包括：
 
 - `unseen`：每一步未接触用户数量
+- `exposed`：每一步刷到但未停留用户数量
 - `viewed`：每一步已观看但未传播用户数量
+- `engaged`：每一步已互动但未传播用户数量
 - `sharing`：每一步正在传播用户数量
 - `inactive`：每一步失活用户数量
 - `heat`：每一步全局热度
+- `new_exposures`：每一步新增曝光人数
+- `new_views`：每一步新增停留观看人数
+- `new_engagements`：每一步新增互动人数
 - `new_shares`：每一步新增传播者数量
 - `social_exposed`：每一步通过社交链路曝光的人数
 - `recommended_exposed`：每一步通过推荐链路曝光的人数
 - `dual_exposed`：每一步同时满足两条曝光路径的人数
 - `avg_sharing_neighbors`：每一步平均邻居传播强度
 - `avg_sharing_influence`：每一步平均邻居影响力
+- `cumulative_exposures`：累计已触达用户数量
+- `view_conversion_rate`：曝光用户转为观看的阶段转化率
+- `engagement_rate`：观看用户转为互动的阶段转化率
+- `share_rate`：互动用户转为传播的阶段转化率
+- `propagation_depth`：当前已达到的最大传播深度
 
 同时会记录 `history_grids`，即每一步完整的网格状态快照，供动画展示使用。
 
-这些统计项在当前版本的可视化中会分成 4 组展示：
+程序摘要中还会输出：
+
+- 热度峰值及其出现步数
+- 最终触达人数
+- 整体转化率
+- 最大传播深度
+
+这些统计项在当前版本的可视化中会分成 6 组展示：
 
 - 用户状态数量变化
-- 热度与新增传播者
+- 行为漏斗阶段新增人数
+- 热度与累计触达
 - 社交曝光、推荐曝光和双重曝光
-- 平均邻居传播强度与平均邻居影响力
+- 阶段转化率
+- 平均邻居传播强度、平均邻居影响力与传播深度
 
 ---
 
@@ -291,6 +321,8 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 ### 传播基础参数
 
 - `P_EXPOSE`
+- `P_VIEW`
+- `P_ENGAGE`
 - `P_SHARE`
 - `P_FADE`
 
@@ -302,6 +334,7 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 - `INTEREST_STD`
 - `INFLUENCE_MEAN`
 - `INFLUENCE_STD`
+- `INFLUENCE_MIN`
 - `FATIGUE_THRESHOLD_MIN`
 - `FATIGUE_THRESHOLD_MAX`
 
@@ -309,14 +342,28 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 
 - `HEAT_BOOST_EXPOSE`
 - `HEAT_BOOST_RECOMMEND`
+- `HEAT_BOOST_VIEW`
+- `HEAT_BOOST_ENGAGE`
 - `HEAT_BOOST_SHARE`
 - `HEAT_DECAY`
 - `HEAT_FROM_SHARES`
 - `HEAT_FROM_NEW_SHARES`
 
-### 推荐与局部影响参数
+### 阶段权重与局部影响参数
 
 - `P_RECOMMEND`
+- `EXPOSE_ACTIVITY_WEIGHT`
+- `EXPOSE_INTEREST_WEIGHT`
+- `RECOMMEND_ACTIVITY_WEIGHT`
+- `RECOMMEND_INTEREST_WEIGHT`
+- `VIEW_ACTIVITY_WEIGHT`
+- `VIEW_INTEREST_WEIGHT`
+- `ENGAGE_ACTIVITY_WEIGHT`
+- `ENGAGE_INTEREST_WEIGHT`
+- `SHARE_ACTIVITY_WEIGHT`
+- `SHARE_INTEREST_WEIGHT`
+- `NEIGHBOR_VIEW_BOOST`
+- `NEIGHBOR_ENGAGE_BOOST`
 - `NEIGHBOR_SHARE_BOOST`
 - `FATIGUE_GROWTH`
 
@@ -336,6 +383,7 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 - 使用 NumPy 做网格计算，逻辑清晰
 - 已从同质用户模型升级到异质用户模型
 - 已支持“社交传播 + 平台推荐”的双通道曝光
+- 已支持更细的行为漏斗和更完整的统计输出
 - 可同时输出统计曲线和传播动画
 
 ---
@@ -345,7 +393,7 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 虽然当前版本比最初更拟真，但仍然有明显简化：
 
 - 用户关系仍然是规则网格，不是真实社交网络
-- 状态仍较少，尚未区分点赞、评论、收藏等互动行为
+- 互动状态仍是单一层，尚未区分点赞、评论、收藏等行为
 - 平台推荐仍用简化概率表示，没有完整推荐策略
 - 用户进入 `INACTIVE` 后不会再被重新激活
 - 目前没有自动化测试文件和正式依赖清单

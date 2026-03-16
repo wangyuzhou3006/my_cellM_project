@@ -27,6 +27,14 @@
 - Verification: 已通过源码编译检查，并在 `first_pyenv` 环境下完成入口运行验证；新增图表字段未出现键名或绘图错误
 - Follow-up: 后续如需提升展示效果，可进一步调整子图配色、线型和布局密度
 
+## 2026-03-16 16:00
+- Topic: 状态链细化与统计口径升级
+- Changes: 将状态链扩展为 `UNSEEN -> EXPOSED -> VIEWED -> ENGAGED -> SHARING -> INACTIVE`；把模型中的阶段权重和经验系数统一收口到 `config.py`；新增曝光量、观看转化率、互动率、分享率、传播深度等统计指标，并更新入口摘要和可视化展示
+- Files: `config.py`, `model.py`, `visualize.py`, `main.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 按 `PLAN.md` 继续推进 Phase 1，使传播漏斗更细、参数更可调、输出更完整
+- Verification: 已通过源码编译、人口守恒检查、历史长度一致性检查和 `first_pyenv` 环境下的完整入口运行验证；测试中发现“初始传播者被计入新增传播者”导致整体分享率口径偏差，已修正
+- Follow-up: 当前参数下累计转化率接近 100%，后续可继续调低推荐或阶段转化参数，让漏斗分层更加明显
+
 ## Template
 - Topic:
 - Changes:
