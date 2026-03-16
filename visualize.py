@@ -48,7 +48,7 @@ def show_animation(history_grids, interval = 150):  #interval:每帧间隔多少
 def plot_metrics(history):
     #时间轴
     t = np.arange(len(history["heat"]))
-    #创建六个子图，分别展示状态数量、行为转化、热度、曝光来源、转化率和传播深度
+    #创建六个子图，分别展示状态数量、行为新增、累计漏斗、曝光来源、阶段率和传播深度
     fig, axes = plt.subplots(2, 3, figsize=(17, 9))
     axes = axes.ravel()
 
@@ -72,16 +72,19 @@ def plot_metrics(history):
     axes[1].set_ylabel("Users per Step")
     axes[1].legend()
 
-    axes[2].plot(t, history["heat"], label="Heat", color="#e76f51")
     axes[2].plot(t, history["cumulative_exposures"], label="Cumulative Exposure", color="#2a9d8f")
-    axes[2].set_title("Heat and Reach")
+    axes[2].plot(t, history["cumulative_views"], label="Cumulative Views", color="#1d3557")
+    axes[2].plot(t, history["cumulative_engagements"], label="Cumulative Engagements", color="#f4a261")
+    axes[2].plot(t, history["cumulative_shares"], label="Cumulative Shares", color="#e76f51")
+    axes[2].set_title("Cumulative Funnel")
     axes[2].set_xlabel("Step")
-    axes[2].set_ylabel("Value")
+    axes[2].set_ylabel("Users")
     axes[2].legend()
 
     axes[3].plot(t, history["social_exposed"], label="Social Exposed", color="#1d3557")
     axes[3].plot(t, history["recommended_exposed"], label="Recommended Exposed", color="#457b9d")
     axes[3].plot(t, history["dual_exposed"], label="Dual Exposed", color="#a8dadc")
+    axes[3].plot(t, history["current_recommended_reach"], label="Recommended Reach", color="#e76f51")
     axes[3].set_title("Exposure Sources")
     axes[3].set_xlabel("Step")
     axes[3].set_ylabel("Number of Users")
@@ -90,7 +93,10 @@ def plot_metrics(history):
     axes[4].plot(t, history["view_conversion_rate"], label="View Conversion", color="#1d3557")
     axes[4].plot(t, history["engagement_rate"], label="Engagement Rate", color="#f4a261")
     axes[4].plot(t, history["share_rate"], label="Share Rate", color="#e76f51")
-    axes[4].set_title("Stage Conversion Rates")
+    axes[4].plot(t, history["skip_rate"], label="Skip Rate", color="#577590")
+    axes[4].plot(t, history["view_drop_rate"], label="View Drop Rate", color="#43aa8b")
+    axes[4].plot(t, history["engage_drop_rate"], label="Engage Drop Rate", color="#bc4749")
+    axes[4].set_title("Stage Rates")
     axes[4].set_xlabel("Step")
     axes[4].set_ylabel("Rate")
     axes[4].set_ylim(0, 1.05)
@@ -98,7 +104,8 @@ def plot_metrics(history):
 
     axes[5].plot(t, history["avg_sharing_neighbors"], label="Avg Sharing Neighbors", color="#6a4c93")
     axes[5].plot(t, history["avg_sharing_influence"], label="Avg Sharing Influence", color="#f4a261")
-    axes[5].plot(t, history["propagation_depth"], label="Propagation Depth", color="#264653")
+    axes[5].plot(t, history["max_social_depth"], label="Max Social Depth", color="#264653")
+    axes[5].plot(t, history["heat"], label="Heat", color="#e76f51")
     axes[5].set_title("Local Strength and Depth")
     axes[5].set_xlabel("Step")
     axes[5].set_ylabel("Value")

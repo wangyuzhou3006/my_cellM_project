@@ -35,6 +35,30 @@
 - Verification: 已通过源码编译、人口守恒检查、历史长度一致性检查和 `first_pyenv` 环境下的完整入口运行验证；测试中发现“初始传播者被计入新增传播者”导致整体分享率口径偏差，已修正
 - Follow-up: 当前参数下累计转化率接近 100%，后续可继续调低推荐或阶段转化参数，让漏斗分层更加明显
 
+## 2026-03-16 16:18
+- Topic: 切换到平衡版参数配置
+- Changes: 将 `config.py` 中的平台推荐、观看、互动、分享以及对应热度/邻居加成参数下调到平衡版方案，目标是削弱推荐主导和过强的阶段转化
+- Files: `config.py`, `WORKLOG.md`
+- Reason: 让传播漏斗从“几乎全通过”调整为“有明显层次但仍保持可传播”
+- Verification: 已通过源码编译和 `first_pyenv` 环境下的完整运行验证；程序正常运行，峰值传播人数从 5743 降到 5302、热度峰值出现步数从 17 延后到 28，但最终触达仍为 6400，整体观看/互动/分享转化率仍接近 100%，传播深度仍为 1
+- Follow-up: 当前平衡版只实现了“传播降温”，尚未实现“漏斗明显分层”；下一步应继续下调推荐和阶段转化参数，或改进传播深度统计口径
+
+## 2026-03-16 16:26
+- Topic: 切换到强分层版参数配置
+- Changes: 进一步下调 `P_RECOMMEND`、`P_VIEW`、`P_ENGAGE`、`P_SHARE` 及对应热度/邻居加成，使推荐链路更弱、行为漏斗更严格
+- Files: `config.py`, `WORKLOG.md`
+- Reason: 在平衡版仍未形成明显分层的情况下，继续增强漏斗筛选效果
+- Verification: 已通过源码编译和 `first_pyenv` 环境下的完整运行验证；程序正常运行，峰值传播人数进一步降到 5066、热度峰值出现步数进一步延后到 39，但最终触达仍为 6400，整体观看/互动/分享转化率仍接近 100%，传播深度仍为 1
+- Follow-up: 当前强分层版仍未形成真正的最终分层，说明仅靠参数调优已接近现有模型结构上限；后续应优先考虑在机制层加入阶段流失、停留或回落逻辑
+
+## 2026-03-16 17:02
+- Topic: 引入中间阶段流失机制
+- Changes: 在 `model.py` 中为 `EXPOSED`、`VIEWED`、`ENGAGED` 加入“前进 / 停留 / 流失”三分机制，新增流失参数、累计漏斗统计、社交深度与推荐触达统计，并同步更新 `main.py`、`visualize.py` 与 `markdown.md`
+- Files: `config.py`, `model.py`, `main.py`, `visualize.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 解决单纯调参无法让最终漏斗分层的问题，让中间状态不再几乎必然前进到下一层
+- Verification: 已通过源码编译、人口守恒检查、历史长度一致性检查和 `first_pyenv` 环境下的完整入口运行验证。机制首次引入后传播被压得过弱，随后回调了 `config.py` 中的前进概率、流失概率和保护项。当前结果为：`Peak sharing users = 478`、`Overall view conversion rate = 51.74%`、`Overall engagement rate = 42.40%`、`Overall share rate = 61.15%`、`Overall skip rate = 48.26%`、`Overall view drop rate = 57.60%`、`Overall engage drop rate = 38.85%`
+- Follow-up: 漏斗分层目标已基本达到，但 `max_social_depth` 仍停留在 1；后续应优先继续分析社交深度统计口径，或进一步减弱推荐覆盖速度以观察更深层传播
+
 ## Template
 - Topic:
 - Changes:

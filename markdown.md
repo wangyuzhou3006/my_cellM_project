@@ -14,7 +14,7 @@
 程序运行后会输出：
 
 - 终端中的模拟摘要
-- 用户状态、行为转化、热度、曝光来源和传播深度曲线
+- 用户状态、行为转化、累计漏斗、曝光来源和传播深度曲线
 - 传播过程动画
 
 ---
@@ -62,7 +62,7 @@
 职责：
 
 - 绘制状态数量变化曲线
-- 绘制状态数量、行为漏斗、热度、曝光来源、转化率和传播深度曲线
+- 绘制状态数量、行为漏斗、累计漏斗、曝光来源、阶段转化/流失率和传播深度曲线
 - 显示传播过程动画
 
 ### `markdown.md`
@@ -85,13 +85,13 @@
 - `VIEWED = 2`：停留观看但尚未互动
 - `ENGAGED = 3`：已经互动，但尚未主动传播
 - `SHARING = 4`：正在传播视频
-- `INACTIVE = 5`：对视频失去兴趣，不再传播
+- `INACTIVE = 5`：沉默或失活，不再继续当前内容链路
 
 状态转移方向为：
 
 `UNSEEN -> EXPOSED -> VIEWED -> ENGAGED -> SHARING -> INACTIVE`
 
-这是一个单向传播过程，用户进入 `INACTIVE` 后不会再次回到活跃传播状态。
+这是一个单向传播过程，用户进入 `INACTIVE` 后不会再次回到当前内容的活跃传播状态；`INACTIVE` 可以来自刷到即流失、观看后流失、互动后流失或传播衰退。
 
 ---
 
@@ -158,20 +158,46 @@
 
 最终只要用户满足任意一条曝光路径，就会从 `UNSEEN` 进入 `EXPOSED`。
 
+曝光概率计算如下。
+
+社交曝光概率：
+
+`P_social = clip((1 - (1 - P_EXPOSE) ^ sharing_influence) * activity_factor * interest_factor + HEAT_BOOST_EXPOSE * heat)`
+
+推荐曝光概率：
+
+`P_recommend = clip((P_RECOMMEND + HEAT_BOOST_RECOMMEND * heat) * activity_factor * interest_factor)`
+
+其中：
+
+- `sharing_influence` 表示邻近传播者影响力之和
+- `activity_factor = 1 - w + w * activity`
+- `interest_factor = 1 - w + w * interest`
+- `clip(x)` 表示把数值裁剪到 `[0, 1]`
+
 ---
 
 ## 4.4 行为漏斗机制
 
-当前版本不再直接从 `VIEWED` 进入 `SHARING`，而是按更细的行为链推进：
+当前版本不再直接从 `VIEWED` 进入 `SHARING`，而是按更细的行为链推进，并为中间阶段加入流失出口：
 
 1. `EXPOSED -> VIEWED`
 刷到内容后，用户可能停留观看。
 
-2. `VIEWED -> ENGAGED`
+2. `EXPOSED -> INACTIVE`
+刷到内容后，用户也可能直接划过并流失。
+
+3. `VIEWED -> ENGAGED`
 完成观看后，用户可能发生互动行为。
 
-3. `ENGAGED -> SHARING`
+4. `VIEWED -> INACTIVE`
+观看后没有继续互动，转入沉默或失活。
+
+5. `ENGAGED -> SHARING`
 已互动用户进一步转化为传播者。
+
+6. `ENGAGED -> INACTIVE`
+互动后没有继续分享，转入沉默或失活。
 
 各阶段的转化都会受到以下因素组合影响：
 
@@ -181,7 +207,46 @@
 - 用户活跃度
 - 用户兴趣匹配度
 
-这使模型不再只有“看过/传播”两个中间层，而能表达用户从刷到、停留、互动到分享的完整漏斗。
+这使模型不再只有“看过/传播”两个中间层，而能表达用户从刷到、停留、互动到分享，并在中途流失的完整漏斗。
+
+中间阶段采用“三分机制”：前进、停留、流失。
+
+以 `EXPOSED` 阶段为例：
+
+前进为观看的原始概率：
+
+`P_view_raw = (P_VIEW + NEIGHBOR_VIEW_BOOST * sharing_influence + HEAT_BOOST_VIEW * heat) * activity_factor * interest_factor`
+
+刷到即流失的原始概率：
+
+`P_skip_raw = (P_SKIP + INTEREST_DROP_WEIGHT * (1 - interest) + ACTIVITY_DROP_WEIGHT * (1 - activity)) / (1 + HEAT_PROTECT_VIEW * heat)`
+
+如果 `P_view_raw + P_skip_raw > 1`，则按比例缩放：
+
+`P_view = P_view_raw / (P_view_raw + P_skip_raw)`
+
+`P_skip = P_skip_raw / (P_view_raw + P_skip_raw)`
+
+停留在 `EXPOSED` 的概率为：
+
+`P_stay_exposed = 1 - P_view - P_skip`
+
+`VIEWED` 和 `ENGAGED` 阶段采用同样结构：
+
+- `VIEWED` 阶段：前进为 `ENGAGED`，流失为 `INACTIVE`
+- `ENGAGED` 阶段：前进为 `SHARING`，流失为 `INACTIVE`
+
+对应的原始概率公式分别为：
+
+`P_engage_raw = (P_ENGAGE + NEIGHBOR_ENGAGE_BOOST * sharing_influence + HEAT_BOOST_ENGAGE * heat) * activity_factor * interest_factor`
+
+`P_drop_view_raw = (P_DROP_VIEW + INTEREST_DROP_WEIGHT * (1 - interest) + 0.5 * ACTIVITY_DROP_WEIGHT * (1 - activity)) / (1 + HEAT_PROTECT_VIEW * heat)`
+
+`P_share_raw = (P_SHARE + NEIGHBOR_SHARE_BOOST * sharing_influence + HEAT_BOOST_SHARE * heat) * activity_factor * interest_factor`
+
+`P_drop_engage_raw = (P_DROP_ENGAGE + 0.5 * INTEREST_DROP_WEIGHT * (1 - interest) + ACTIVITY_DROP_WEIGHT * (1 - activity)) / (1 + HEAT_PROTECT_ENGAGE * heat)`
+
+这几组概率在每个阶段内部都会进行归一化处理，剩余部分视为用户停留在当前状态。
 
 ---
 
@@ -253,16 +318,29 @@
 - `new_views`：每一步新增停留观看人数
 - `new_engagements`：每一步新增互动人数
 - `new_shares`：每一步新增传播者数量
+- `new_skips`：每一步刷到即流失的人数
+- `new_drop_view`：每一步观看后流失的人数
+- `new_drop_engage`：每一步互动后流失的人数
+- `new_inactive_from_sharing`：每一步传播衰退后失活的人数
 - `social_exposed`：每一步通过社交链路曝光的人数
 - `recommended_exposed`：每一步通过推荐链路曝光的人数
 - `dual_exposed`：每一步同时满足两条曝光路径的人数
 - `avg_sharing_neighbors`：每一步平均邻居传播强度
 - `avg_sharing_influence`：每一步平均邻居影响力
 - `cumulative_exposures`：累计已触达用户数量
+- `cumulative_views`：累计进入观看阶段的人数
+- `cumulative_engagements`：累计进入互动阶段的人数
+- `cumulative_shares`：累计进入传播阶段的人数
+- `cumulative_inactive`：累计进入失活状态的人数
+- `current_social_reach`：当前通过社交链首次触达的人数
+- `current_recommended_reach`：当前通过推荐链首次触达的人数
 - `view_conversion_rate`：曝光用户转为观看的阶段转化率
 - `engagement_rate`：观看用户转为互动的阶段转化率
 - `share_rate`：互动用户转为传播的阶段转化率
-- `propagation_depth`：当前已达到的最大传播深度
+- `skip_rate`：曝光用户直接流失的阶段比例
+- `view_drop_rate`：观看用户流失的阶段比例
+- `engage_drop_rate`：互动用户流失的阶段比例
+- `max_social_depth`：当前已达到的最大社交传播深度
 
 同时会记录 `history_grids`，即每一步完整的网格状态快照，供动画展示使用。
 
@@ -271,16 +349,18 @@
 - 热度峰值及其出现步数
 - 最终触达人数
 - 整体转化率
+- 整体流失率
+- 推荐触达规模
 - 最大传播深度
 
 这些统计项在当前版本的可视化中会分成 6 组展示：
 
 - 用户状态数量变化
 - 行为漏斗阶段新增人数
-- 热度与累计触达
-- 社交曝光、推荐曝光和双重曝光
-- 阶段转化率
-- 平均邻居传播强度、平均邻居影响力与传播深度
+- 累计漏斗
+- 社交曝光、推荐曝光、双重曝光和推荐触达
+- 阶段转化率与阶段流失率
+- 平均邻居传播强度、平均邻居影响力、热度与社交传播深度
 
 ---
 
@@ -325,6 +405,9 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 - `P_ENGAGE`
 - `P_SHARE`
 - `P_FADE`
+- `P_SKIP`
+- `P_DROP_VIEW`
+- `P_DROP_ENGAGE`
 
 ### 个体异质性参数
 
@@ -345,6 +428,8 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 - `HEAT_BOOST_VIEW`
 - `HEAT_BOOST_ENGAGE`
 - `HEAT_BOOST_SHARE`
+- `HEAT_PROTECT_VIEW`
+- `HEAT_PROTECT_ENGAGE`
 - `HEAT_DECAY`
 - `HEAT_FROM_SHARES`
 - `HEAT_FROM_NEW_SHARES`
@@ -366,6 +451,8 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 - `NEIGHBOR_ENGAGE_BOOST`
 - `NEIGHBOR_SHARE_BOOST`
 - `FATIGUE_GROWTH`
+- `INTEREST_DROP_WEIGHT`
+- `ACTIVITY_DROP_WEIGHT`
 
 ### 运行与显示参数
 
@@ -396,6 +483,7 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 - 互动状态仍是单一层，尚未区分点赞、评论、收藏等行为
 - 平台推荐仍用简化概率表示，没有完整推荐策略
 - 用户进入 `INACTIVE` 后不会再被重新激活
+- 社交传播深度仍然偏浅，后续仍可能需要从传播拓扑或深度定义上继续改进
 - 目前没有自动化测试文件和正式依赖清单
 
 因此，该项目更适合作为传播模拟实验和算法演示，而不是直接作为真实平台行为预测工具。
