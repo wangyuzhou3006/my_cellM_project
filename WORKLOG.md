@@ -83,6 +83,38 @@
 - Verification: 已通过源码编译、人口守恒检查和 `first_pyenv` 环境下的完整入口运行验证。结果显示：`Peak Heat Step` 从 47 延后到 51，`Peak sharing_step` 从 44 延后到 48，`Peak sharing users` 从 370 下降到 357；整体转化率保持稳定分层，`Recommended reach` 为 352
 - Follow-up: 当前方案已经进一步放缓节奏且保持了漏斗分层，但系统仍在前段完成主体扩散；如果还要继续拉长生命周期，下一步应优先提高 `MIN_EXPOSED_STEPS` / `MIN_VIEWED_STEPS` 到更高档位，或开始评估 C 档累积意愿分数机制
 
+## 2026-03-16 19:05
+- Topic: 实现分组消融实验
+- Changes: 新增 `ablation.py`，按 `ABLATION_EXPERIMENT_PLAN.md` 实现 `baseline`、`no_recommend`、`weak_social`、`no_heat_feedback`、`no_heterogeneity`、`no_dropout`、`no_stage_gating`、`slow_seed` 共 8 组实验；自动汇总核心指标并输出 `ablation_results.csv` 和 `ablation_delta.csv`；同步更新 `markdown.md` 说明新脚本、结果文件和运行方式
+- Files: `ablation.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 为“不同影响因素对传播的重要性”提供可重复、可对比的实验入口，避免手工改参数逐组运行
+- Verification: 已通过源码编译检查，并在 `first_pyenv` 环境中完成 `python my_cellM_project/ablation.py` 运行验证，成功生成两份结果表。当前结果已能区分主要机制作用：`no_heat_feedback` 使最终触达下降约 `63.64%`、热度峰值下降约 `99.17%`；`no_dropout` 使热度峰值上升约 `834.70%`、峰值传播人数上升约 `1046.22%`，且整体转化率重新接近 `100%`；`no_stage_gating` 使热度峰值时间提前 `16` 步并抬高峰值；`no_recommend` 对当前配置下的总体触达影响很小，但推荐触达归零
+- Follow-up: 当前配置下“推荐”和“弱社交”对总体规模影响都不大，后续如果要让机制重要性更均衡，可继续检查推荐覆盖口径和社交链参数设计，或引入多随机种子重复实验
+
+## 2026-03-16 19:22
+- Topic: 新增消融结果绝对值柱状图
+- Changes: 新增 `plot_ablation.py`，读取 `ablation_results.csv` 并绘制 `2 x 2` 的绝对值对比柱状图，覆盖最终触达人数、热度峰值、传播人数峰值和热度峰值出现步数；图标题和图例使用中文，输出文件为 `ablation_absolute.png`
+- Files: `plot_ablation.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 让分组消融实验结果能够直接以图像方式比较，便于快速判断不同机制对传播规模、强度和节奏的影响
+- Verification: 已通过源码编译检查，并在 `first_pyenv` 环境中完成 `python my_cellM_project/plot_ablation.py` 运行验证，成功生成 `ablation_absolute.png`。图像文件已生成且大小正常，可用于查看绝对值指标差异
+- Follow-up: 下一步可继续补充相对变化图、漏斗对比图和热力图，形成完整的消融分析可视化输出
+
+## 2026-03-16 19:48
+- Topic: 扩展为多随机种子消融实验
+- Changes: 将 `ablation.py` 从单随机种子版本扩展为多随机种子版本；新增 `SEEDS` 循环，输出逐次运行明细 `ablation_runs.csv`、按实验组聚合的 `ablation_summary.csv`，以及相对基准组的 `ablation_delta_summary.csv`；同时保留原有 `ablation_results.csv` 和 `ablation_delta.csv`，避免影响现有绘图脚本
+- Files: `ablation.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 降低单一随机种子对结论的影响，让机制重要性判断从“单次样本”升级为“多次重复后的平均结果”
+- Verification: 已通过源码编译检查，并在 `first_pyenv` 环境中完成 `python my_cellM_project/ablation.py` 运行验证。当前默认使用 5 个随机种子、8 个实验组，共生成 40 条逐次运行记录；`ablation_runs.csv` 行数为 `40`，`ablation_summary.csv` 和 `ablation_delta_summary.csv` 行数均为 `8`。关键指标的标准差已正常出现，例如基准组 `std_peak_heat = 319.620213`、`std_peak_sharing = 39.00641`，说明多随机种子聚合已生效。`no_heat_feedback` 的均值结果仍显著压低传播规模和强度，`no_dropout` 与 `no_stage_gating` 的均值结果仍明显抬高峰值并提前节奏；同时 `plot_ablation.py` 仍可正常读取保留的 `ablation_results.csv` 并生成图像
+- Follow-up: 若多随机种子结果波动明显，下一步可把 `plot_ablation.py` 升级为读取 `ablation_summary.csv` 并加入误差棒
+
+## 2026-03-16 20:02
+- Topic: 升级绝对值柱状图为多随机种子版本
+- Changes: 更新 `plot_ablation.py`，将数据源从 `ablation_results.csv` 切换为 `ablation_summary.csv`，在最终触达人数、热度峰值、传播人数峰值和热度峰值出现步数四个子图中加入标准差误差棒，并在柱顶额外标出 `±std`
+- Files: `plot_ablation.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 让绝对值图不仅展示均值，还能直接反映不同实验组在多随机种子下的波动范围
+- Verification: 已通过源码编译检查，并在 `first_pyenv` 环境中完成 `python my_cellM_project/plot_ablation.py` 运行验证，成功重新生成 `ablation_absolute.png`。图像已切换为读取 `ablation_summary.csv` 的版本，四个子图均正常显示均值柱体和标准差误差棒；例如基准组热度峰值显示为 `2734.0 ± 319.6`，`no_stage_gating` 的热度峰值出现步数显示为 `34.2 ± 1.8`，说明多随机种子汇总信息已成功接入图像
+- Follow-up: 若误差棒版本可读性稳定，下一步可继续把相对变化图和漏斗图也切换到汇总表口径
+
 ## Template
 - Topic:
 - Changes:

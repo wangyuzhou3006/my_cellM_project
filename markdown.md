@@ -65,6 +65,24 @@
 - 绘制状态数量、行为漏斗、累计漏斗、曝光来源、阶段转化/流失率和传播深度曲线
 - 显示传播过程动画
 
+### `ablation.py`
+分组消融实验脚本。
+
+职责：
+
+- 按预设实验组批量运行模拟
+- 生成单随机种子结果表，兼容当前快速分析和绘图流程
+- 生成多随机种子明细表、汇总表和相对基准组的变化表，便于更稳定地比较不同机制的重要性
+
+### `plot_ablation.py`
+消融结果绘图脚本。
+
+职责：
+
+- 读取 `ablation_summary.csv`
+- 绘制带标准差误差棒的分组消融实验绝对值对比柱状图
+- 输出 `ablation_absolute.png`
+
 ### `markdown.md`
 项目说明文档，即当前文件。
 
@@ -73,6 +91,24 @@
 
 ### `PLAN.md`
 项目演进路线图，记录后续模型升级方向。
+
+### `ablation_results.csv`
+分组消融实验的结果汇总表。
+
+### `ablation_delta.csv`
+相对基准组的变化表，用于直接比较各机制被关闭或削弱后的影响。
+
+### `ablation_runs.csv`
+多随机种子消融实验的逐次运行明细表。每一行对应一个“实验组 × 随机种子”组合。
+
+### `ablation_summary.csv`
+多随机种子消融实验的汇总表。当前按实验组聚合，记录核心指标的均值和标准差。
+
+### `ablation_delta_summary.csv`
+多随机种子消融实验相对基准组的均值变化表，用于判断某种机制的重要性是否在多次重复下仍然稳定。
+
+### `ablation_absolute.png`
+消融实验绝对值对比图，当前包含最终触达人数、热度峰值、传播人数峰值和热度峰值出现步数四个子图，并使用标准差误差棒表示多随机种子下的波动。
 
 ---
 
@@ -377,6 +413,59 @@
 - 阶段转化率与阶段流失率
 - 平均邻居传播强度、平均邻居影响力、热度与社交传播深度
 
+如果运行 `ablation.py`，还会额外输出两份实验结果文件：
+
+- `ablation_results.csv`：每个实验组的绝对结果
+- `ablation_delta.csv`：相对 `baseline` 的变化量
+
+当前版本的 `ablation.py` 还会额外输出多随机种子结果：
+
+- `ablation_runs.csv`：逐次运行明细
+- `ablation_summary.csv`：按实验组聚合后的均值和标准差
+- `ablation_delta_summary.csv`：相对基准组的均值变化
+
+如果运行 `plot_ablation.py`，还会额外输出一张图像：
+
+- `ablation_absolute.png`：基于 `ablation_summary.csv` 的分组消融实验绝对值对比柱状图，包含标准差误差棒
+
+当前消融实验默认记录以下核心指标：
+
+- `final_reached`
+- `exposure_volume`
+- `cumulative_views`
+- `cumulative_engagements`
+- `cumulative_shares`
+- `peak_heat`
+- `peak_heat_step`
+- `peak_sharing`
+- `peak_sharing_step`
+- `overall_view_conversion`
+- `overall_engagement_conversion`
+- `overall_share_conversion`
+- `overall_skip_rate`
+- `overall_view_drop_rate`
+- `overall_engage_drop_rate`
+- `recommended_reach`
+- `max_social_depth`
+- `steps_to_half_reach`
+- `steps_to_half_peak_heat`
+
+这些指标分别覆盖传播规模、传播强度、传播节奏、漏斗结构和传播来源结构。
+
+在多随机种子模式下，`ablation.py` 默认会对每个实验组使用 5 个随机种子重复运行，并对以下核心指标计算均值和标准差：
+
+- `final_reached`
+- `peak_heat`
+- `peak_heat_step`
+- `peak_sharing`
+- `overall_view_conversion`
+- `overall_engagement_conversion`
+- `overall_share_conversion`
+- `recommended_reach`
+- `max_social_depth`
+
+这样可以减少单次随机样本对结论的影响，让机制重要性分析更稳定。
+
 ---
 
 ## 7. 如何运行
@@ -388,6 +477,30 @@
 ```bash
 python my_cellM_project/main.py
 ```
+
+运行分组消融实验：
+
+```bash
+python my_cellM_project/ablation.py
+```
+
+运行完成后会在项目根目录生成：
+
+- `ablation_results.csv`
+- `ablation_delta.csv`
+- `ablation_runs.csv`
+- `ablation_summary.csv`
+- `ablation_delta_summary.csv`
+
+绘制绝对值对比柱状图：
+
+```bash
+python my_cellM_project/plot_ablation.py
+```
+
+运行完成后会在项目根目录生成：
+
+- `ablation_absolute.png`
 
 如果使用 conda 环境，应确保运行命令对应的解释器中已经安装：
 
@@ -493,6 +606,8 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 - 已从同质用户模型升级到异质用户模型
 - 已支持“社交传播 + 平台推荐”的双通道曝光
 - 已支持更细的行为漏斗和更完整的统计输出
+- 已支持按机制分组的消融实验分析
+- 已支持带标准差误差棒的消融结果绝对值柱状图输出
 - 可同时输出统计曲线和传播动画
 
 ---

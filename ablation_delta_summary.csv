@@ -1,0 +1,9 @@
+group,description,num_seeds,delta_mean_final_reached_pct,delta_mean_peak_heat_pct,delta_mean_peak_heat_step,delta_mean_peak_sharing_pct,delta_mean_overall_view_conversion_pct,delta_mean_overall_engagement_conversion_pct,delta_mean_overall_share_conversion_pct,delta_mean_recommended_reach_pct,delta_mean_max_social_depth_pct
+baseline,当前配置,5,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+no_recommend,关闭平台推荐链路,5,0.0,0.002725,1.0,-0.030565,-0.001365,-0.003114,0.003716,-1.0,0.2
+weak_social,削弱社交传播影响,5,0.0,-0.006486,0.2,-0.01196,-0.000496,-0.000313,-0.001595,0.002867,-0.2
+no_heat_feedback,关闭热度对行为的反向影响,5,-0.642687,-0.988722,117.6,-0.987375,-0.071006,-0.353423,-0.635991,5.412844,0.2
+no_heterogeneity,关闭用户个体差异,5,0.0,-0.11479,1.8,-0.166777,-0.003039,-0.057787,-0.095307,0.001147,-0.2
+no_dropout,关闭中间阶段流失,5,0.0,9.77103,-10.2,12.6299,0.98369,1.608194,0.744759,-0.110092,0.0
+no_stage_gating,关闭最短停留步数限制,5,0.0,0.362088,-18.0,0.591362,0.029894,0.090356,0.063223,-0.152523,0.0
+slow_seed,降低初始传播源数量,5,0.0,-0.011619,9.2,-0.041196,-0.00831,0.007822,-0.008392,0.145642,-0.2
