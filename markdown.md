@@ -199,6 +199,8 @@
 6. `ENGAGED -> INACTIVE`
 互动后没有继续分享，转入沉默或失活。
 
+此外，`EXPOSED`、`VIEWED`、`ENGAGED` 三个中间阶段都设置了最短停留步数。在达到最短停留时间之前，用户只能继续停留在当前状态，不能前进到下一阶段，也不能流失到 `INACTIVE`。
+
 各阶段的转化都会受到以下因素组合影响：
 
 - 阶段基础概率
@@ -248,6 +250,18 @@
 
 这几组概率在每个阶段内部都会进行归一化处理，剩余部分视为用户停留在当前状态。
 
+当前实现还加入了时间门控条件：
+
+- 当 `exposed_time < MIN_EXPOSED_STEPS` 时，`EXPOSED` 用户不能执行 `VIEWED` 或 `INACTIVE` 转移
+- 当 `viewed_time < MIN_VIEWED_STEPS` 时，`VIEWED` 用户不能执行 `ENGAGED` 或 `INACTIVE` 转移
+- 当 `engaged_time < MIN_ENGAGED_STEPS` 时，`ENGAGED` 用户不能执行 `SHARING` 或 `INACTIVE` 转移
+
+因此，实际转移可以表示为：
+
+`if stage_time >= MIN_STAGE_STEPS: apply transition probabilities`
+
+`else: stay in current stage`
+
 ---
 
 ## 4.5 衰退机制
@@ -296,10 +310,11 @@
 3. 创建初始网格，并随机生成初始传播者
 4. 为所有用户生成个体属性
 5. 初始化传播深度和统计容器
-6. 重复执行每一步传播更新
-7. 保存每一步的网格和统计结果
-8. 输出摘要信息
-9. 绘制统计图和传播动画
+6. 初始化中间阶段计时器
+7. 重复执行每一步传播更新
+8. 保存每一步的网格和统计结果
+9. 输出摘要信息
+10. 绘制统计图和传播动画
 
 ---
 
@@ -398,6 +413,8 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 - `RANDOM_SEED`
 - `INITIAL_SHARERS`
 
+其中，`INITIAL_SHARERS` 会直接影响传播前期节奏：初始传播源越少，传播越倾向于从局部缓慢展开，而不是在早期快速铺开。
+
 ### 传播基础参数
 
 - `P_EXPOSE`
@@ -457,8 +474,13 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 ### 运行与显示参数
 
 - `MAX_SHARING_STEPS`
+- `MIN_EXPOSED_STEPS`
+- `MIN_VIEWED_STEPS`
+- `MIN_ENGAGED_STEPS`
 - `INTERVAL`
 - `NEIGHBORHOOD`
+
+`MIN_EXPOSED_STEPS`、`MIN_VIEWED_STEPS`、`MIN_ENGAGED_STEPS` 是当前版本中控制传播节奏的重要参数。它们越大，中间状态停留时间越长，峰值通常越晚出现，整个传播过程也越不容易过早趋稳。与此同时，`P_EXPOSE` 越低，社交链的扩散起点越弱，传播会更偏向缓慢展开而不是快速铺开。
 
 ---
 

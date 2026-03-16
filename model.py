@@ -140,6 +140,9 @@ def count_states(grid: np.ndarray) -> dict:
 def step(
     grid: np.ndarray,
     sharing_time: np.ndarray,
+    exposed_time: np.ndarray,
+    viewed_time: np.ndarray,
+    engaged_time: np.ndarray,
     social_depth_grid: np.ndarray,
     source_grid: np.ndarray,
     traits: dict,
@@ -149,6 +152,9 @@ def step(
 ):
     new_grid = grid.copy()
     new_sharing_time = sharing_time.copy()
+    new_exposed_time = exposed_time.copy()
+    new_viewed_time = viewed_time.copy()
+    new_engaged_time = engaged_time.copy()
     new_social_depth = social_depth_grid.copy()
     new_source_grid = source_grid.copy()
 
@@ -195,9 +201,12 @@ def step(
     new_source_grid[recommend_first] = SOURCE_RECOMMEND
     social_depth_mask = social_first & (neighbor_social_depth >= 0)
     new_social_depth[social_depth_mask] = neighbor_social_depth[social_depth_mask] + 1
+    new_exposed_time[new_exposed] = 0
 
     # EXPOSED -> VIEWED | INACTIVE
     exposed_mask = grid == EXPOSED
+    new_exposed_time[exposed_mask] += 1
+    exposed_eligible = exposed_mask & (new_exposed_time >= config.MIN_EXPOSED_STEPS)
     view_prob = (
         config.P_VIEW
         + config.NEIGHBOR_VIEW_BOOST * sharing_influence
@@ -215,16 +224,20 @@ def step(
     )
     skip_prob = clip_grob(skip_prob / (1.0 + config.HEAT_PROTECT_VIEW * heat))
     exposed_to_viewed, exposed_to_inactive = resolve_stage_transitions(
-        exposed_mask,
+        exposed_eligible,
         view_prob,
         skip_prob,
         rng,
     )
     new_grid[exposed_to_viewed] = VIEWED
     new_grid[exposed_to_inactive] = INACTIVE
+    new_exposed_time[exposed_to_viewed | exposed_to_inactive] = 0
+    new_viewed_time[exposed_to_viewed] = 0
 
     # VIEWED -> ENGAGED | INACTIVE
     viewed_mask = grid == VIEWED
+    new_viewed_time[viewed_mask] += 1
+    viewed_eligible = viewed_mask & (new_viewed_time >= config.MIN_VIEWED_STEPS)
     engage_prob = (
         config.P_ENGAGE
         + config.NEIGHBOR_ENGAGE_BOOST * sharing_influence
@@ -242,16 +255,20 @@ def step(
     )
     drop_view_prob = clip_grob(drop_view_prob / (1.0 + config.HEAT_PROTECT_VIEW * heat))
     viewed_to_engaged, viewed_to_inactive = resolve_stage_transitions(
-        viewed_mask,
+        viewed_eligible,
         engage_prob,
         drop_view_prob,
         rng,
     )
     new_grid[viewed_to_engaged] = ENGAGED
     new_grid[viewed_to_inactive] = INACTIVE
+    new_viewed_time[viewed_to_engaged | viewed_to_inactive] = 0
+    new_engaged_time[viewed_to_engaged] = 0
 
     # ENGAGED -> SHARING | INACTIVE
     engaged_mask = grid == ENGAGED
+    new_engaged_time[engaged_mask] += 1
+    engaged_eligible = engaged_mask & (new_engaged_time >= config.MIN_ENGAGED_STEPS)
     share_prob = (
         config.P_SHARE
         + config.NEIGHBOR_SHARE_BOOST * sharing_influence
@@ -269,13 +286,14 @@ def step(
     )
     drop_engage_prob = clip_grob(drop_engage_prob / (1.0 + config.HEAT_PROTECT_ENGAGE * heat))
     engaged_to_sharing, engaged_to_inactive = resolve_stage_transitions(
-        engaged_mask,
+        engaged_eligible,
         share_prob,
         drop_engage_prob,
         rng,
     )
     new_grid[engaged_to_sharing] = SHARING
     new_grid[engaged_to_inactive] = INACTIVE
+    new_engaged_time[engaged_to_sharing | engaged_to_inactive] = 0
     new_sharing_time[engaged_to_sharing] = 0
 
     # SHARING -> INACTIVE
@@ -314,13 +332,26 @@ def step(
         "view_drop_rate": int(np.sum(viewed_to_inactive)) / max(int(np.sum(viewed_mask)), 1),
         "engage_drop_rate": int(np.sum(engaged_to_inactive)) / max(int(np.sum(engaged_mask)), 1),
     }
-    return new_grid, new_sharing_time, new_social_depth, new_source_grid, metrics, counts
+    return (
+        new_grid,
+        new_sharing_time,
+        new_exposed_time,
+        new_viewed_time,
+        new_engaged_time,
+        new_social_depth,
+        new_source_grid,
+        metrics,
+        counts,
+    )
 
 
 def run_simulation(config):
     rng = np.random.default_rng(config.RANDOM_SEED)
     grid = creat_grid(config.GRID_SIZE, config.INITIAL_SHARERS, rng)
     sharing_time = np.zeros_like(grid, dtype=np.int16)
+    exposed_time = np.zeros_like(grid, dtype=np.int16)
+    viewed_time = np.zeros_like(grid, dtype=np.int16)
+    engaged_time = np.zeros_like(grid, dtype=np.int16)
     social_depth_grid = np.full_like(grid, -1, dtype=np.int16)
     social_depth_grid[grid == SHARING] = 0
     source_grid = np.full_like(grid, SOURCE_NONE, dtype=np.int8)
@@ -417,6 +448,9 @@ def run_simulation(config):
         (
             grid,
             sharing_time,
+            exposed_time,
+            viewed_time,
+            engaged_time,
             social_depth_grid,
             source_grid,
             step_metrics,
@@ -424,6 +458,9 @@ def run_simulation(config):
         ) = step(
             grid=grid,
             sharing_time=sharing_time,
+            exposed_time=exposed_time,
+            viewed_time=viewed_time,
+            engaged_time=engaged_time,
             social_depth_grid=social_depth_grid,
             source_grid=source_grid,
             traits=traits,

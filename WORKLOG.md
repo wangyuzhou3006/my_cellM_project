@@ -59,6 +59,30 @@
 - Verification: 已通过源码编译、人口守恒检查、历史长度一致性检查和 `first_pyenv` 环境下的完整入口运行验证。机制首次引入后传播被压得过弱，随后回调了 `config.py` 中的前进概率、流失概率和保护项。当前结果为：`Peak sharing users = 478`、`Overall view conversion rate = 51.74%`、`Overall engagement rate = 42.40%`、`Overall share rate = 61.15%`、`Overall skip rate = 48.26%`、`Overall view drop rate = 57.60%`、`Overall engage drop rate = 38.85%`
 - Follow-up: 漏斗分层目标已基本达到，但 `max_social_depth` 仍停留在 1；后续应优先继续分析社交深度统计口径，或进一步减弱推荐覆盖速度以观察更深层传播
 
+## 2026-03-16 17:22
+- Topic: 实现 B 档最短停留步数机制
+- Changes: 在 `config.py` 中新增 `MIN_EXPOSED_STEPS`、`MIN_VIEWED_STEPS`、`MIN_ENGAGED_STEPS`；在 `model.py` 中为 `EXPOSED`、`VIEWED`、`ENGAGED` 增加阶段计时器，并在达到最短停留步数前禁止前进或流失
+- Files: `config.py`, `model.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 解决传播过程在前几十步内过快趋稳的问题，让中间状态形成更明显的平台期
+- Verification: 已通过源码编译、人口守恒检查、历史长度一致性检查和 `first_pyenv` 环境下的完整入口运行验证。结果显示：`Peak Heat Step` 从 32 延后到 38，`Peak sharing users` 从 478 降到 389，`peak_exposed = 1702`、`peak_viewed = 1018`、`peak_engaged = 355`，整体转化率仍保持分层状态
+- Follow-up: B 档已实现“节奏放缓”，但幅度有限，系统仍在较早阶段完成主要变化；后续可优先尝试继续提高最短停留步数，或结合 A 档继续减缓推荐速度
+
+## 2026-03-16 17:35
+- Topic: 结合 A 档继续放缓传播节奏
+- Changes: 在保留 B 档最短停留机制的前提下，下调 `INITIAL_SHARERS`、`P_RECOMMEND`、`HEAT_BOOST_RECOMMEND`，并将 `MIN_EXPOSED_STEPS`、`MIN_VIEWED_STEPS` 进一步上调
+- Files: `config.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 进一步延后峰值出现时间，避免系统在前几十步内过快趋稳
+- Verification: 已通过源码编译、人口守恒检查和 `first_pyenv` 环境下的完整入口运行验证。结果显示：`Peak Heat Step` 从 38 延后到 47，`Peak sharing_step` 到 44，`Peak sharing users` 从 389 下降到 370，`Recommended reach` 从 423 降到 335；整体转化率仍保持分层状态，没有退回到“全通过”模型
+- Follow-up: 本轮已明显放缓传播节奏，但系统仍在较早阶段完成主体扩散；若后续还要继续拉长生命周期，可优先继续上调 `MIN_EXPOSED_STEPS` / `MIN_VIEWED_STEPS`，或再轻微下调社交曝光起点
+
+## 2026-03-16 17:48
+- Topic: 继续延后传播峰值
+- Changes: 进一步下调 `P_EXPOSE`，并把 `MIN_EXPOSED_STEPS`、`MIN_VIEWED_STEPS`、`MIN_ENGAGED_STEPS` 再次上调，目标是在保留漏斗分层的同时继续拉长传播前中期
+- Files: `config.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 上一轮虽然明显延后了峰值，但主体扩散仍发生得偏早，需要继续压低社交曝光起点并延长中间状态停留
+- Verification: 已通过源码编译、人口守恒检查和 `first_pyenv` 环境下的完整入口运行验证。结果显示：`Peak Heat Step` 从 47 延后到 51，`Peak sharing_step` 从 44 延后到 48，`Peak sharing users` 从 370 下降到 357；整体转化率保持稳定分层，`Recommended reach` 为 352
+- Follow-up: 当前方案已经进一步放缓节奏且保持了漏斗分层，但系统仍在前段完成主体扩散；如果还要继续拉长生命周期，下一步应优先提高 `MIN_EXPOSED_STEPS` / `MIN_VIEWED_STEPS` 到更高档位，或开始评估 C 档累积意愿分数机制
+
 ## Template
 - Topic:
 - Changes:

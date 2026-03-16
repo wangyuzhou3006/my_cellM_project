@@ -3,13 +3,13 @@ STEPS = 500
 RANDOM_SEED = 22
 
 #初始传播源数量
-INITIAL_SHARERS = 5
+INITIAL_SHARERS = 3
 
 #领域类型
 NEIGHBORHOOD = "von_neumann"
 
 #基础传播参数
-P_EXPOSE = 0.11     #未接触用户被邻居影响而看到视频的基础概率
+P_EXPOSE = 0.09     #未接触用户被邻居影响而看到视频的基础概率
 P_VIEW = 0.26       #刷到但未停留用户转为停留观看的基础概率
 P_ENGAGE = 0.09     #停留观看用户转为互动用户的基础概率
 P_SHARE = 0.07      #互动用户转变为传播者的基础概率
@@ -39,8 +39,8 @@ HEAT_PROTECT_ENGAGE = 0.00015
 HEAT_DECAY = 0.92           #热度衰减系数
 
 #平台推荐曝光参数
-P_RECOMMEND = 0.0025
-HEAT_BOOST_RECOMMEND = 0.0002
+P_RECOMMEND = 0.0015
+HEAT_BOOST_RECOMMEND = 0.00015
 
 #行为阶段中活跃度和兴趣匹配度的权重
 EXPOSE_ACTIVITY_WEIGHT = 0.50
@@ -68,6 +68,11 @@ HEAT_FROM_NEW_SHARES = 2.0
 
 #传播者最长持续步数
 MAX_SHARING_STEPS = 8
+
+#中间阶段最短停留步数
+MIN_EXPOSED_STEPS = 4
+MIN_VIEWED_STEPS = 4
+MIN_ENGAGED_STEPS = 3
 
 #可视化
 INTERVAL = 150  #ms
