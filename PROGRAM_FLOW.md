@@ -1,233 +1,237 @@
 # 程序流程说明
 
-## 1. 程序做什么
+## 1. 项目现在包含什么
 
-这个程序用二维网格模拟短视频在用户群体中的传播过程。
+当前项目已经不只是“单次传播模拟”。它包含三条相互衔接的流程：
 
-每个网格单元代表一个用户。用户会在不同状态之间转移，并受到以下因素影响：
+1. 主模拟流程  
+   从 [`main.py`](/Users/zhou/project/my_cellM_project/main.py) 启动，运行一次传播模拟，打印摘要，并调用 [`visualize.py`](/Users/zhou/project/my_cellM_project/visualize.py) 输出统计图和动画。
 
-- 邻居中传播者的影响
-- 平台推荐
-- 用户个体差异
-- 内容全局热度
-- 中间阶段的停留时间和流失机制
+2. 分组消融实验流程  
+   从 [`ablation.py`](/Users/zhou/project/my_cellM_project/ablation.py) 启动，按预设实验组和多个随机种子重复运行模拟，生成对比用的 CSV 结果表。
 
-程序运行后会：
+3. 消融结果绘图流程  
+   从 [`plot_ablation.py`](/Users/zhou/project/my_cellM_project/plot_ablation.py) 启动，读取消融实验的汇总结果，输出绝对值图和相对变化图。
 
-1. 执行传播模拟
-2. 输出摘要信息
-3. 绘制统计图
-4. 播放传播动画
+因此，项目当前的完整结构可以理解为：
+
+`配置 -> 模拟 -> 统计 -> 可视化 -> 消融实验 -> 结果汇总 -> 结果绘图`
 
 ---
 
 ## 2. 文件分工
 
-### `config.py`
-存放所有参数。
+### 主模拟相关
 
-### `model.py`
-实现核心传播算法。
+- [`config.py`](/Users/zhou/project/my_cellM_project/config.py)  
+  存放网格大小、步数、随机种子、传播概率、热度参数、个体异质性参数、阶段最短停留步数等全部配置。
 
-### `main.py`
-程序入口，负责运行模拟、打印摘要、调用可视化。
+- [`model.py`](/Users/zhou/project/my_cellM_project/model.py)  
+  实现传播与演化算法，包括状态更新、热度更新、用户异质性、统计记录等。
 
-### `visualize.py`
-负责曲线图和动画展示。
+- [`main.py`](/Users/zhou/project/my_cellM_project/main.py)  
+  单次模拟入口，负责调用 `run_simulation()`，打印摘要，并调用可视化。
+
+- [`visualize.py`](/Users/zhou/project/my_cellM_project/visualize.py)  
+  输出单次模拟的统计图和网格动画。
+
+### 消融实验相关
+
+- [`ablation.py`](/Users/zhou/project/my_cellM_project/ablation.py)  
+  分组消融实验入口，负责批量运行实验、输出单次结果、多随机种子明细、汇总表和相对基准组变化表。
+
+- [`plot_ablation.py`](/Users/zhou/project/my_cellM_project/plot_ablation.py)  
+  读取消融实验结果，输出绝对值柱状图和相对变化柱状图。
+
+### 文档与结果
+
+- [`markdown.md`](/Users/zhou/project/my_cellM_project/markdown.md)  
+  项目总说明。
+
+- [`WORKLOG.md`](/Users/zhou/project/my_cellM_project/WORKLOG.md)  
+  开发日志。
+
+- [`PLAN.md`](/Users/zhou/project/my_cellM_project/PLAN.md)  
+  后续演进路线。
+
+- [`ablation_results.csv`](/Users/zhou/project/my_cellM_project/ablation_results.csv)  
+  单随机种子实验结果。
+
+- [`ablation_delta.csv`](/Users/zhou/project/my_cellM_project/ablation_delta.csv)  
+  单随机种子相对基准组变化。
+
+- [`ablation_runs.csv`](/Users/zhou/project/my_cellM_project/ablation_runs.csv)  
+  多随机种子逐次运行明细。
+
+- [`ablation_summary.csv`](/Users/zhou/project/my_cellM_project/ablation_summary.csv)  
+  多随机种子按实验组聚合后的均值和标准差。
+
+- [`ablation_delta_summary.csv`](/Users/zhou/project/my_cellM_project/ablation_delta_summary.csv)  
+  多随机种子相对基准组的均值变化。
+
+- [`ablation_absolute.png`](/Users/zhou/project/my_cellM_project/ablation_absolute.png)  
+  消融实验绝对值对比图。
+
+- [`ablation_delta.png`](/Users/zhou/project/my_cellM_project/ablation_delta.png)  
+  消融实验相对变化对比图。
 
 ---
 
-## 3. 用户状态
+## 3. 主模拟流程
 
-程序中每个用户有 6 种状态：
+### 3.1 启动入口
 
-- `UNSEEN`：未触达
-- `EXPOSED`：刷到但未停留
-- `VIEWED`：停留观看
-- `ENGAGED`：已经互动但未分享
-- `SHARING`：正在传播
-- `INACTIVE`：沉默或失活
+运行：
 
-主状态链为：
+```bash
+python my_cellM_project/main.py
+```
 
-`UNSEEN -> EXPOSED -> VIEWED -> ENGAGED -> SHARING -> INACTIVE`
+[`main.py`](/Users/zhou/project/my_cellM_project/main.py) 会执行：
 
-其中中间状态也可以直接流失到 `INACTIVE`。
+1. 调用 [`model.py`](/Users/zhou/project/my_cellM_project/model.py) 中的 `run_simulation(config)`
+2. 从返回的 `history` 中提取摘要指标
+3. 在终端打印摘要
+4. 调用 [`visualize.py`](/Users/zhou/project/my_cellM_project/visualize.py) 输出统计图和动画
 
----
+### 3.2 初始化
 
-## 4. 程序主流程
+`run_simulation(config)` 的初始化步骤如下：
 
-### 第一步：读取配置
+1. 用 `config.RANDOM_SEED` 初始化随机数生成器  
+2. 创建初始网格 `grid`
+3. 生成初始传播者
+4. 初始化传播者持续时间 `sharing_time`
+5. 初始化中间阶段计时器
+   - `exposed_time`
+   - `viewed_time`
+   - `engaged_time`
+6. 初始化社交传播深度 `social_depth_grid`
+7. 初始化首次触达来源 `source_grid`
+8. 为每个用户采样个体属性
+   - `activity`
+   - `interest`
+   - `influence`
+   - `fatigue_threshold`
+9. 初始化 `history` 和 `history_grids`
 
-`main.py` 从 `config.py` 读取网格大小、传播概率、热度参数、停留步数等配置。
+### 3.3 单步更新顺序
 
-### 第二步：初始化系统
-
-`run_simulation()` 会初始化：
-
-- 随机数生成器
-- 初始传播网格
-- 传播者持续时间 `sharing_time`
-- 中间状态停留计时器
-  - `exposed_time`
-  - `viewed_time`
-  - `engaged_time`
-- 社交传播深度 `social_depth_grid`
-- 首次触达来源 `source_grid`
-- 用户个体属性
-  - `activity`
-  - `interest`
-  - `influence`
-  - `fatigue_threshold`
-
-### 第三步：逐步更新状态
-
-每一步都调用 `step()`，按固定顺序更新：
+每一步由 [`model.py`](/Users/zhou/project/my_cellM_project/model.py) 中的 `step()` 完成，顺序固定：
 
 1. `UNSEEN -> EXPOSED`
 2. `EXPOSED -> VIEWED / INACTIVE / 留在原状态`
 3. `VIEWED -> ENGAGED / INACTIVE / 留在原状态`
 4. `ENGAGED -> SHARING / INACTIVE / 留在原状态`
 5. `SHARING -> INACTIVE / 留在原状态`
-6. 更新热度
-7. 记录统计结果
+6. 用当前传播结果更新热度
+7. 记录本步状态统计和累计指标
 
-### 第四步：输出结果
+### 3.4 输出结果
 
-模拟结束后：
+单次模拟结束后，程序会输出：
 
-- `main.py` 打印摘要
-- `visualize.py` 绘制统计图
-- `visualize.py` 播放网格动画
+- 终端摘要  
+  例如热度峰值、最终触达人数、推荐触达规模、整体转化率等
+
+- 统计图  
+  包括状态数量、漏斗新增、累计漏斗、曝光来源、阶段转化率、传播深度等
+
+- 网格动画  
+  逐步展示整个传播过程
 
 ---
 
-## 5. 核心公式
+## 4. 状态与传播机制
 
-## 5.1 社交曝光概率
+### 4.1 用户状态
 
-未触达用户可能因为邻居传播者而刷到内容。
+当前状态一共 6 个：
 
-公式：
+- `UNSEEN`：未触达
+- `EXPOSED`：刷到但未停留
+- `VIEWED`：停留观看
+- `ENGAGED`：已互动但未分享
+- `SHARING`：正在传播
+- `INACTIVE`：沉默或失活
+
+主状态链是：
+
+`UNSEEN -> EXPOSED -> VIEWED -> ENGAGED -> SHARING -> INACTIVE`
+
+其中 `EXPOSED`、`VIEWED`、`ENGAGED` 都允许中途流失到 `INACTIVE`。
+
+### 4.2 双通道曝光
+
+`UNSEEN` 用户进入 `EXPOSED` 有两条路径：
+
+1. 社交曝光
+2. 平台推荐曝光
+
+社交曝光概率：
 
 `P_social = clip((1 - (1 - P_EXPOSE) ^ sharing_influence) * activity_factor * interest_factor + HEAT_BOOST_EXPOSE * heat)`
 
-解释：
-
-- `sharing_influence`：邻居传播者影响力总和
-- `P_EXPOSE`：基础社交曝光概率
-- `activity_factor`：活跃度修正
-- `interest_factor`：兴趣匹配修正
-- `heat`：当前全局热度
-- `clip(x)`：把概率限制在 `[0, 1]`
-
-含义：
-邻居传播越强、用户越活跃、兴趣越匹配、热度越高，社交曝光概率越大。
-
-## 5.2 推荐曝光概率
-
-未触达用户也可能因为平台推荐而刷到内容。
-
-公式：
+推荐曝光概率：
 
 `P_recommend = clip((P_RECOMMEND + HEAT_BOOST_RECOMMEND * heat) * activity_factor * interest_factor)`
 
-解释：
+其中：
 
-- `P_RECOMMEND`：基础推荐曝光概率
-- `HEAT_BOOST_RECOMMEND * heat`：热度带来的推荐增强
+- `sharing_influence`：邻居传播者影响力之和
+- `activity_factor = 1 - w + w * activity`
+- `interest_factor = 1 - w + w * interest`
+- `clip(x)`：将值截断到 `[0, 1]`
 
-含义：
-平台推荐会随着热度上升而增强，但仍会受到用户活跃度和兴趣匹配影响。
+### 4.3 中间阶段三分机制
 
-## 5.3 中间阶段前进概率
+`EXPOSED`、`VIEWED`、`ENGAGED` 都采用“前进 / 流失 / 停留”的三分机制。
 
-以 `EXPOSED -> VIEWED` 为例：
+以 `EXPOSED` 阶段为例：
+
+前进概率原型：
 
 `P_view_raw = (P_VIEW + NEIGHBOR_VIEW_BOOST * sharing_influence + HEAT_BOOST_VIEW * heat) * activity_factor * interest_factor`
 
-类似地：
-
-- `VIEWED -> ENGAGED`
-
-`P_engage_raw = (P_ENGAGE + NEIGHBOR_ENGAGE_BOOST * sharing_influence + HEAT_BOOST_ENGAGE * heat) * activity_factor * interest_factor`
-
-- `ENGAGED -> SHARING`
-
-`P_share_raw = (P_SHARE + NEIGHBOR_SHARE_BOOST * sharing_influence + HEAT_BOOST_SHARE * heat) * activity_factor * interest_factor`
-
-含义：
-用户越活跃、兴趣越匹配、周围传播越强、热度越高，就越容易进入下一阶段。
-
-## 5.4 中间阶段流失概率
-
-以 `EXPOSED -> INACTIVE` 为例：
+流失概率原型：
 
 `P_skip_raw = (P_SKIP + INTEREST_DROP_WEIGHT * (1 - interest) + ACTIVITY_DROP_WEIGHT * (1 - activity)) / (1 + HEAT_PROTECT_VIEW * heat)`
 
-类似地：
-
-- `VIEWED -> INACTIVE`
-
-`P_drop_view_raw = (P_DROP_VIEW + INTEREST_DROP_WEIGHT * (1 - interest) + 0.5 * ACTIVITY_DROP_WEIGHT * (1 - activity)) / (1 + HEAT_PROTECT_VIEW * heat)`
-
-- `ENGAGED -> INACTIVE`
-
-`P_drop_engage_raw = (P_DROP_ENGAGE + 0.5 * INTEREST_DROP_WEIGHT * (1 - interest) + ACTIVITY_DROP_WEIGHT * (1 - activity)) / (1 + HEAT_PROTECT_ENGAGE * heat)`
-
-含义：
-兴趣越低、活跃度越低，越容易中途流失；热度越高，越能减少中途流失。
-
-## 5.5 三分机制
-
-每个中间阶段都不是“只前进”，而是三选一：
-
-- 前进
-- 流失
-- 停留
-
-如果前进概率和流失概率之和大于 1，程序会先做归一化：
+如果前进和流失之和大于 1，则做归一化：
 
 `P_forward = P_forward_raw / (P_forward_raw + P_drop_raw)`
 
 `P_drop = P_drop_raw / (P_forward_raw + P_drop_raw)`
 
-停留概率：
+停留概率为：
 
 `P_stay = 1 - P_forward - P_drop`
 
-含义：
-这样可以避免概率总和超过 1。
+`VIEWED -> ENGAGED / INACTIVE` 和 `ENGAGED -> SHARING / INACTIVE` 使用同样结构，只是对应的基础概率和局部加成参数不同。
 
-## 5.6 最短停留步数门控
+### 4.4 最短停留步数门控
 
-对 `EXPOSED`、`VIEWED`、`ENGAGED`，程序增加了最短停留步数限制：
+为了避免传播过快趋稳，中间阶段增加了最短停留步数限制：
 
 - `MIN_EXPOSED_STEPS`
 - `MIN_VIEWED_STEPS`
 - `MIN_ENGAGED_STEPS`
 
-规则：
+规则是：
 
 `if stage_time < MIN_STAGE_STEPS: stay`
 
-`if stage_time >= MIN_STAGE_STEPS: apply transition probabilities`
+也就是说，在达到最短停留时间之前，用户不能前进，也不能流失。
 
-含义：
-用户在达到最短停留时间之前，不能前进，也不能流失，只能停留。
+### 4.5 传播者衰退
 
-## 5.7 传播者衰退概率
-
-传播者不会永久传播，会随时间失活。
-
-公式：
+传播者不会一直传播。其失活概率由基础失活率和疲劳共同决定：
 
 `fatigue_ratio = sharing_time / fatigue_threshold`
 
 `P_fade = clip(P_FADE + FATIGUE_GROWTH * fatigue_ratio)`
 
-如果：
+同时，如果：
 
 - `sharing_time >= MAX_SHARING_STEPS`
   或
@@ -235,170 +239,238 @@
 
 则强制失活。
 
-含义：
-传播时间越长，失活概率越高。
+### 4.6 热度更新
 
-## 5.8 热度更新公式
-
-热度在每一步更新：
+每一步结束后更新热度：
 
 `heat = HEAT_DECAY * prev_heat + HEAT_FROM_SHARES * sharers + HEAT_FROM_NEW_SHARES * new_shares`
 
-解释：
-
-- `prev_heat`：上一时刻热度
-- `HEAT_DECAY`：热度保留率
-- `sharers`：当前传播者人数
-- `new_shares`：新增传播者人数
-
-含义：
-热度会衰减，但当前传播者和新增传播者会把热度继续抬高。
+这个热度既是传播结果，也是下一步曝光和转化的重要输入。
 
 ---
 
-## 6. 关键变量说明
+## 5. 主模拟里的关键统计
 
-### 网格与状态变量
+`run_simulation()` 当前会把结果写入 `history`。主要包括 5 类：
 
-- `grid`：当前用户状态网格
-- `history_grids`：每一步的网格快照
+### 5.1 状态数量
 
-### 时间变量
+- `unseen`
+- `exposed`
+- `viewed`
+- `engaged`
+- `sharing`
+- `inactive`
 
-- `sharing_time`：传播者已经传播了多久
-- `exposed_time`：用户在 `EXPOSED` 停留多久
-- `viewed_time`：用户在 `VIEWED` 停留多久
-- `engaged_time`：用户在 `ENGAGED` 停留多久
+### 5.2 每步新增
 
-### 个体属性变量
+- `new_exposures`
+- `new_views`
+- `new_engagements`
+- `new_shares`
+- `new_skips`
+- `new_drop_view`
+- `new_drop_engage`
+- `new_inactive_from_sharing`
 
-- `activity`：用户活跃度
-- `interest`：用户与内容的兴趣匹配度
-- `influence`：用户传播影响力
-- `fatigue_threshold`：用户疲劳阈值
+### 5.3 曝光来源与局部传播
 
-### 传播结构变量
+- `social_exposed`
+- `recommended_exposed`
+- `dual_exposed`
+- `avg_sharing_neighbors`
+- `avg_sharing_influence`
+- `current_social_reach`
+- `current_recommended_reach`
+- `max_social_depth`
 
-- `sharing_neighbors`：邻居中传播者数量
-- `sharing_influence`：邻居传播影响力总和
-- `social_depth_grid`：用户首次通过社交链触达时的深度
-- `source_grid`：用户首次触达来源
+### 5.4 累计漏斗
 
-### 统计变量
+- `cumulative_exposures`
+- `cumulative_views`
+- `cumulative_engagements`
+- `cumulative_shares`
+- `cumulative_inactive`
 
-- `history`：保存每一步统计结果
-- `heat`：全局热度
+### 5.5 阶段转化率
 
----
+- `view_conversion_rate`
+- `engagement_rate`
+- `share_rate`
+- `skip_rate`
+- `view_drop_rate`
+- `engage_drop_rate`
 
-## 7. 关键算法实现
-
-## 7.1 邻居统计
-
-程序用数组平移的方式统计上下左右或八邻域，不使用逐个格子循环。
-
-核心函数：
-
-- `get_neighbor_values()`
-- `get_neighbor_count()`
-- `get_neighbor_max()`
-
-作用：
-
-- 计算邻居传播者数量
-- 计算邻居传播影响力总和
-- 计算邻居中最大的社交传播深度
-
-## 7.2 状态更新顺序
-
-每一步都按固定顺序更新，这是为了避免同一步内“新状态立即再次传播”造成混乱。
-
-程序使用旧网格 `grid` 计算转移条件，把结果写入新网格 `new_grid`，属于同步更新。
-
-## 7.3 首次触达来源记录
-
-程序区分用户是首次通过：
-
-- 社交传播触达
-- 推荐系统触达
-
-如果两者同时发生，优先记为社交触达，并同时记录双重曝光统计。
-
-## 7.4 历史统计记录
-
-每一步结束后，程序会把状态人数、阶段新增、累计漏斗、阶段转化率、流失率、热度、传播深度等信息全部写入 `history`，供摘要输出和可视化使用。
+此外，`history_grids` 会保存每一步完整网格，专门用于动画。
 
 ---
 
-## 8. 参数说明
+## 6. 消融实验流程
 
-### 规模参数
+### 6.1 启动入口
 
-- `GRID_SIZE`：网格边长
-- `STEPS`：总模拟步数
-- `RANDOM_SEED`：随机种子
-- `INITIAL_SHARERS`：初始传播者数量
+运行：
 
-### 基础阶段概率
+```bash
+python my_cellM_project/ablation.py
+```
 
-- `P_EXPOSE`：社交曝光基础概率
-- `P_VIEW`：观看基础概率
-- `P_ENGAGE`：互动基础概率
-- `P_SHARE`：分享基础概率
-- `P_FADE`：传播衰退基础概率
-- `P_SKIP`：刷到即流失基础概率
-- `P_DROP_VIEW`：观看后流失基础概率
-- `P_DROP_ENGAGE`：互动后流失基础概率
+[`ablation.py`](/Users/zhou/project/my_cellM_project/ablation.py) 会执行两层实验：
 
-### 推荐参数
+1. 单随机种子版本  
+   用当前 `config.RANDOM_SEED` 生成：
+   - `ablation_results.csv`
+   - `ablation_delta.csv`
 
-- `P_RECOMMEND`：基础推荐曝光概率
-- `HEAT_BOOST_RECOMMEND`：热度对推荐的增强
+2. 多随机种子版本  
+   当前默认用 5 个随机种子，生成：
+   - `ablation_runs.csv`
+   - `ablation_summary.csv`
+   - `ablation_delta_summary.csv`
 
-### 热度参数
+### 6.2 实验组
 
-- `HEAT_BOOST_EXPOSE`
-- `HEAT_BOOST_VIEW`
-- `HEAT_BOOST_ENGAGE`
-- `HEAT_BOOST_SHARE`
-- `HEAT_PROTECT_VIEW`
-- `HEAT_PROTECT_ENGAGE`
-- `HEAT_DECAY`
-- `HEAT_FROM_SHARES`
-- `HEAT_FROM_NEW_SHARES`
+当前预设 8 组：
 
-### 邻居影响参数
+- `baseline`
+- `no_recommend`
+- `weak_social`
+- `no_heat_feedback`
+- `no_heterogeneity`
+- `no_dropout`
+- `no_stage_gating`
+- `slow_seed`
 
-- `NEIGHBOR_VIEW_BOOST`
-- `NEIGHBOR_ENGAGE_BOOST`
-- `NEIGHBOR_SHARE_BOOST`
+每组都只改一部分配置，其他参数保持基准不变。
 
-### 个体属性参数
+### 6.3 多随机种子运行
 
-- `ACTIVITY_MEAN`, `ACTIVITY_STD`
-- `INTEREST_MEAN`, `INTEREST_STD`
-- `INFLUENCE_MEAN`, `INFLUENCE_STD`, `INFLUENCE_MIN`
-- `FATIGUE_THRESHOLD_MIN`, `FATIGUE_THRESHOLD_MAX`
+多随机种子流程是：
 
-### 节奏控制参数
+1. 外层遍历实验组
+2. 内层遍历随机种子列表 `SEEDS`
+3. 对每个“实验组 × 随机种子”调用一次 `run_simulation()`
+4. 把单次结果写入 `ablation_runs.csv`
+5. 按实验组聚合均值和标准差，写入 `ablation_summary.csv`
+6. 再相对 `baseline` 计算均值变化，写入 `ablation_delta_summary.csv`
 
-- `MAX_SHARING_STEPS`
-- `MIN_EXPOSED_STEPS`
-- `MIN_VIEWED_STEPS`
-- `MIN_ENGAGED_STEPS`
+### 6.4 消融实验里的核心指标
 
-这些参数越大，中间状态停留越久，传播节奏越慢。
+当前多随机种子汇总主要关注：
+
+- `final_reached`
+- `peak_heat`
+- `peak_heat_step`
+- `heat_center_step`
+- `peak_sharing`
+- `overall_view_conversion`
+- `overall_engagement_conversion`
+- `overall_share_conversion`
+- `recommended_reach`
+- `max_social_depth`
+
+其中 `heat_center_step` 是新增的稳健节奏指标：
+
+`heat_center_step = sum(t * heat_t) / sum(heat_t)`
+
+它表示热度在时间轴上的“重心位置”，比单纯看 `peak_heat_step` 更适合低热度、低振幅场景。
 
 ---
 
-## 9. 当前实现特点
+## 7. 消融结果绘图流程
 
-当前程序的特点是：
+### 7.1 启动入口
 
-- 结构清晰，便于阅读
-- 使用向量化数组计算，效率较高
-- 既考虑社交传播，也考虑平台推荐
-- 有中间阶段停留和流失机制
-- 可直接输出统计结果和动画
+运行：
 
-它适合做传播机制演示、参数实验和模型迭代基础。
+```bash
+python my_cellM_project/plot_ablation.py
+```
+
+### 7.2 绝对值图
+
+脚本读取：
+
+- [`ablation_summary.csv`](/Users/zhou/project/my_cellM_project/ablation_summary.csv)
+
+输出：
+
+- [`ablation_absolute.png`](/Users/zhou/project/my_cellM_project/ablation_absolute.png)
+
+当前包含 5 个子图：
+
+- 最终触达人数
+- 热度峰值
+- 传播人数峰值
+- 热度峰值出现步数
+- 热度时间重心步数
+
+这些子图显示的是多随机种子均值，并带标准差误差棒。
+
+### 7.3 相对变化图
+
+脚本读取：
+
+- [`ablation_delta_summary.csv`](/Users/zhou/project/my_cellM_project/ablation_delta_summary.csv)
+
+输出：
+
+- [`ablation_delta.png`](/Users/zhou/project/my_cellM_project/ablation_delta.png)
+
+当前包含 5 个相对子图：
+
+- 最终触达人数相对变化
+- 热度峰值相对变化
+- 传播人数峰值相对变化
+- 热度峰值出现步数变化
+- 热度时间重心步数变化
+
+其中：
+
+- 规模和强度指标用百分比表示
+- 时间指标用步数差表示
+- 颜色区分相对上升和相对下降
+
+---
+
+## 8. 当前最重要的流程关系
+
+如果只抓主线，当前项目可以简化成下面这张流程图：
+
+### 单次模拟主线
+
+`config.py -> main.py -> model.run_simulation() -> history/history_grids -> visualize.py`
+
+### 消融实验主线
+
+`config.py + ablation.py -> 多组配置覆盖 -> 多随机种子运行 -> ablation_runs.csv / ablation_summary.csv / ablation_delta_summary.csv`
+
+### 消融绘图主线
+
+`ablation_summary.csv -> plot_ablation.py -> ablation_absolute.png`
+
+`ablation_delta_summary.csv -> plot_ablation.py -> ablation_delta.png`
+
+---
+
+## 9. 如何使用这份文档
+
+如果你要理解项目：
+
+1. 先看“第 3 节主模拟流程”
+2. 再看“第 4 节状态与传播机制”
+3. 然后看“第 6 节消融实验流程”
+4. 最后看“第 7 节消融结果绘图流程”
+
+如果你要改代码：
+
+- 改传播机制，优先看 [`model.py`](/Users/zhou/project/my_cellM_project/model.py)
+- 改实验分组，优先看 [`ablation.py`](/Users/zhou/project/my_cellM_project/ablation.py)
+- 改结果图，优先看 [`plot_ablation.py`](/Users/zhou/project/my_cellM_project/plot_ablation.py)
+
+这份文档的目标不是重复所有参数说明，而是让你快速知道：
+
+- 程序从哪里开始跑
+- 每一步做了什么
+- 数据最后流向哪里
+- 当前新增的实验和图像功能如何接入整个项目
