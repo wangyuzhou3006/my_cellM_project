@@ -80,8 +80,10 @@
 职责：
 
 - 读取 `ablation_summary.csv`
+- 读取 `ablation_delta_summary.csv`
 - 绘制带标准差误差棒的分组消融实验绝对值对比柱状图
-- 输出 `ablation_absolute.png`
+- 绘制相对基准组变化的柱状图
+- 输出 `ablation_absolute.png` 和 `ablation_delta.png`
 
 ### `markdown.md`
 项目说明文档，即当前文件。
@@ -108,7 +110,10 @@
 多随机种子消融实验相对基准组的均值变化表，用于判断某种机制的重要性是否在多次重复下仍然稳定。
 
 ### `ablation_absolute.png`
-消融实验绝对值对比图，当前包含最终触达人数、热度峰值、传播人数峰值和热度峰值出现步数四个子图，并使用标准差误差棒表示多随机种子下的波动。
+消融实验绝对值对比图，当前包含最终触达人数、热度峰值、传播人数峰值、热度峰值出现步数和热度时间重心步数五个子图，并使用标准差误差棒表示多随机种子下的波动。
+
+### `ablation_delta.png`
+消融实验相对变化对比图，基于 `ablation_delta_summary.csv` 绘制，当前包含最终触达人数、热度峰值、传播人数峰值、热度峰值出现步数和热度时间重心步数五个相对子图。
 
 ---
 
@@ -426,7 +431,8 @@
 
 如果运行 `plot_ablation.py`，还会额外输出一张图像：
 
-- `ablation_absolute.png`：基于 `ablation_summary.csv` 的分组消融实验绝对值对比柱状图，包含标准差误差棒
+- `ablation_absolute.png`：基于 `ablation_summary.csv` 的分组消融实验绝对值对比柱状图，包含标准差误差棒，并同时展示 `peak_heat_step` 与 `heat_center_step`
+- `ablation_delta.png`：基于 `ablation_delta_summary.csv` 的相对变化柱状图，用于直接比较各实验组相对基准组的变化幅度
 
 当前消融实验默认记录以下核心指标：
 
@@ -437,6 +443,7 @@
 - `cumulative_shares`
 - `peak_heat`
 - `peak_heat_step`
+- `heat_center_step`
 - `peak_sharing`
 - `peak_sharing_step`
 - `overall_view_conversion`
@@ -452,11 +459,18 @@
 
 这些指标分别覆盖传播规模、传播强度、传播节奏、漏斗结构和传播来源结构。
 
+其中，`heat_center_step` 表示热度时间重心，计算公式为：
+
+`heat_center_step = sum(t * heat_t) / sum(heat_t)`
+
+它不是寻找“最大值出现在哪一步”，而是衡量整条热度曲线主要集中在时间轴的什么位置。在低热度、低振幅场景下，这个指标通常比 `peak_heat_step` 更稳定。
+
 在多随机种子模式下，`ablation.py` 默认会对每个实验组使用 5 个随机种子重复运行，并对以下核心指标计算均值和标准差：
 
 - `final_reached`
 - `peak_heat`
 - `peak_heat_step`
+- `heat_center_step`
 - `peak_sharing`
 - `overall_view_conversion`
 - `overall_engagement_conversion`
@@ -501,6 +515,7 @@ python my_cellM_project/plot_ablation.py
 运行完成后会在项目根目录生成：
 
 - `ablation_absolute.png`
+- `ablation_delta.png`
 
 如果使用 conda 环境，应确保运行命令对应的解释器中已经安装：
 
@@ -608,6 +623,7 @@ MPLBACKEND=Agg python my_cellM_project/main.py
 - 已支持更细的行为漏斗和更完整的统计输出
 - 已支持按机制分组的消融实验分析
 - 已支持带标准差误差棒的消融结果绝对值柱状图输出
+- 已支持相对基准组变化的消融结果柱状图输出
 - 可同时输出统计曲线和传播动画
 
 ---

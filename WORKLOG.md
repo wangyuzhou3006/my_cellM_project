@@ -115,6 +115,30 @@
 - Verification: 已通过源码编译检查，并在 `first_pyenv` 环境中完成 `python my_cellM_project/plot_ablation.py` 运行验证，成功重新生成 `ablation_absolute.png`。图像已切换为读取 `ablation_summary.csv` 的版本，四个子图均正常显示均值柱体和标准差误差棒；例如基准组热度峰值显示为 `2734.0 ± 319.6`，`no_stage_gating` 的热度峰值出现步数显示为 `34.2 ± 1.8`，说明多随机种子汇总信息已成功接入图像
 - Follow-up: 若误差棒版本可读性稳定，下一步可继续把相对变化图和漏斗图也切换到汇总表口径
 
+## 2026-03-16 20:18
+- Topic: 新增稳健热度节奏指标 `heat_center_step`
+- Changes: 在 `ablation.py` 中新增 `heat_center_step` 统计，按热度时间重心公式 `sum(t * heat_t) / sum(heat_t)` 计算；将其接入单随机种子结果、多随机种子汇总和相对基准组对比输出
+- Files: `ablation.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 解决 `no_heat_feedback` 组中 `peak_heat_step` 在低热度场景下过于依赖随机尖峰、方差过大的问题，为传播节奏分析提供更稳健的时间指标
+- Verification: 已通过源码编译检查，并在 `first_pyenv` 环境中完成 `python my_cellM_project/ablation.py` 运行验证。`ablation_results.csv`、`ablation_summary.csv` 和 `ablation_delta_summary.csv` 已新增 `heat_center_step` 相关字段。对于重点关注的 `no_heat_feedback` 组，多随机种子下 `std_peak_heat_step = 150.909576`，而 `std_heat_center_step = 25.487004`，波动明显收敛；基准组 `std_heat_center_step = 2.251911`，与 `std_peak_heat_step = 2.167948` 同数量级，说明新指标在常规场景下也保持稳定可用
+- Follow-up: 如果 `heat_center_step` 在 `no_heat_feedback` 组里明显比 `peak_heat_step` 稳定，下一步可把它加入后续节奏对比图或报告口径
+
+## 2026-03-16 20:30
+- Topic: 将 `heat_center_step` 接入绝对值对比图
+- Changes: 更新 `plot_ablation.py`，在绝对值对比图中新增“热度时间重心步数”子图，并将整体布局从 `2 x 2` 调整为 `2 x 3`，同时保留 `peak_heat_step`，便于直接比较两种热度节奏指标
+- Files: `plot_ablation.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 让对比图能够直观看到 `peak_heat_step` 与 `heat_center_step` 的差异，特别是用于解释 `no_heat_feedback` 组里原始峰值时间口径的不稳定性
+- Verification: 已通过源码编译检查，并在 `first_pyenv` 环境中完成 `python my_cellM_project/plot_ablation.py` 运行验证，成功重新生成 `ablation_absolute.png`。图像已扩展为 5 个有效子图，新增“热度时间重心步数”后可直接与“热度峰值出现步数”对照；其中 `no_heat_feedback` 组在图中显示出 `peak_heat_step = 169.8 ± 150.9` 与 `heat_center_step = 228.0 ± 25.5` 的明显差异，说明新指标已经成功接入并改善了节奏解释的稳定性
+- Follow-up: 若这张图的节奏部分可读性足够好，下一步可继续把相对变化图也接入 `heat_center_step`
+
+## 2026-03-16 20:44
+- Topic: 新增相对变化柱状图
+- Changes: 更新 `plot_ablation.py`，新增读取 `ablation_delta_summary.csv` 的相对变化图输出 `ablation_delta.png`；图中加入最终触达人数、热度峰值、传播人数峰值、热度峰值出现步数和热度时间重心步数 5 个相对子图，百分比指标统一转换为 `%` 显示，并通过正负配色区分相对上升与下降
+- Files: `plot_ablation.py`, `WORKLOG.md`, `markdown.md`
+- Reason: 让多随机种子消融实验除了看绝对均值外，也能直接看相对基准组的变化幅度，便于判断不同机制对传播规模、强度和节奏的影响方向
+- Verification: 已通过源码编译检查，并在 `first_pyenv` 环境中完成 `python my_cellM_project/plot_ablation.py` 运行验证，成功生成 `ablation_delta.png`。图像文件已生成且格式正常，5 个相对子图均可正常显示：例如 `no_heat_feedback` 组在图中表现为最终触达约 `-64.3%`、热度峰值约 `-98.9%`、热度峰值出现步数 `+117.6`、热度时间重心步数 `+170.7`；`no_dropout` 组则表现为热度峰值约 `+977.1%`、传播人数峰值约 `+1263.0%`
+- Follow-up: 如果相对变化图可读性稳定，下一步可考虑再补一张漏斗结构相对变化图
+
 ## Template
 - Topic:
 - Changes:

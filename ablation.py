@@ -87,6 +87,7 @@ CORE_METRICS = [
     "final_reached",
     "peak_heat",
     "peak_heat_step",
+    "heat_center_step",
     "peak_sharing",
     "overall_view_conversion",
     "overall_engagement_conversion",
@@ -96,6 +97,7 @@ CORE_METRICS = [
 ]
 STEP_KEYS = {
     "peak_heat_step",
+    "heat_center_step",
     "peak_sharing_step",
     "steps_to_half_reach",
     "steps_to_half_peak_heat",
@@ -121,9 +123,18 @@ def first_step_at_or_above(values, target):
     return len(values) - 1
 
 
+def compute_heat_center_step(heat_history):
+    total_heat = sum(heat_history)
+    if total_heat <= 0:
+        return 0.0
+    weighted_sum = sum(step * heat for step, heat in enumerate(heat_history))
+    return weighted_sum / total_heat
+
+
 def summarize_history(history, exp_config):
     peak_heat = max(history["heat"])
     peak_heat_step = history["heat"].index(peak_heat)
+    heat_center_step = compute_heat_center_step(history["heat"])
     peak_sharing = max(history["sharing"])
     peak_sharing_step = history["sharing"].index(peak_sharing)
     final_reached = history["cumulative_exposures"][-1]
@@ -153,6 +164,7 @@ def summarize_history(history, exp_config):
         "cumulative_shares": cumulative_shares,
         "peak_heat": round(peak_heat, 4),
         "peak_heat_step": peak_heat_step,
+        "heat_center_step": round(heat_center_step, 6),
         "peak_sharing": peak_sharing,
         "peak_sharing_step": peak_sharing_step,
         "peak_exposed": peak_exposed,
