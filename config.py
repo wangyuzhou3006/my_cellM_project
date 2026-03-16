@@ -13,10 +13,28 @@ P_EXPOSE = 0.11     #未接触用户被邻居影响而看到视频的基础概�
 P_SHARE = 0.22      #已观看用户转变为传播者的基础概率
 P_FADE = 0.08       #传播者失去兴趣的基本概率
 
+#个体异质性参数
+ACTIVITY_MEAN = 0.65
+ACTIVITY_STD = 0.15
+INTEREST_MEAN = 0.58
+INTEREST_STD = 0.18
+INFLUENCE_MEAN = 1.0
+INFLUENCE_STD = 0.25
+FATIGUE_THRESHOLD_MIN = 5
+FATIGUE_THRESHOLD_MAX = 10
+
 #热度反馈参数
 HEAT_BOOST_EXPOSE = 0.002   #热度对曝光概率的提升
 HEAT_BOOST_SHARE = 0.0018   #热度对分享概率的提升
 HEAT_DECAY = 0.92           #热度衰减系数
+
+#平台推荐曝光参数
+P_RECOMMEND = 0.015
+HEAT_BOOST_RECOMMEND = 0.0012
+
+#局部传播影响参数
+NEIGHBOR_SHARE_BOOST = 0.03
+FATIGUE_GROWTH = 0.02
 
 #热度计算
 HEAT_FROM_SHARES = 1.0

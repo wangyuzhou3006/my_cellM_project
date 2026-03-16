@@ -46,9 +46,10 @@ def show_animation(history_grids, interval = 150):  #interval:每帧间隔多少
 def plot_metrics(history):
     #时间轴
     t = np.arange(len(history["heat"]))
-    #创建两个子图
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4))     #绘制一行两列的图，左边：状态人数变化，右边：热度和新增传播
-    #左图
+    #创建四个子图，分别展示状态数量、热度、曝光来源和局部传播强度
+    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+    axes = axes.ravel()
+
     axes[0].plot(t, history["unseen"], label="Unseen")
     axes[0].plot(t, history["viewed"], label="Viewed")
     axes[0].plot(t, history["sharing"], label="Sharing")
@@ -57,11 +58,28 @@ def plot_metrics(history):
     axes[0].set_xlabel("Step")
     axes[0].set_ylabel("Number of Users")
     axes[0].legend()
-    #右图
-    axes[1].plot(t, history["heat"], label="Heat")
-    axes[1].plot(t, history["new_shares"], label="New Shares")
+
+    axes[1].plot(t, history["heat"], label="Heat", color="#e76f51")
+    axes[1].plot(t, history["new_shares"], label="New Shares", color="#2a9d8f")
+    axes[1].set_title("Heat and New Shares")
     axes[1].set_xlabel("Step")
+    axes[1].set_ylabel("Value")
     axes[1].legend()
+
+    axes[2].plot(t, history["social_exposed"], label="Social Exposed", color="#1d3557")
+    axes[2].plot(t, history["recommended_exposed"], label="Recommended Exposed", color="#457b9d")
+    axes[2].plot(t, history["dual_exposed"], label="Dual Exposed", color="#a8dadc")
+    axes[2].set_title("Exposure Sources")
+    axes[2].set_xlabel("Step")
+    axes[2].set_ylabel("Number of Users")
+    axes[2].legend()
+
+    axes[3].plot(t, history["avg_sharing_neighbors"], label="Avg Sharing Neighbors", color="#6a4c93")
+    axes[3].plot(t, history["avg_sharing_influence"], label="Avg Sharing Influence", color="#f4a261")
+    axes[3].set_title("Local Diffusion Strength")
+    axes[3].set_xlabel("Step")
+    axes[3].set_ylabel("Average Value")
+    axes[3].legend()
     
     plt.tight_layout()
     plt.show()
